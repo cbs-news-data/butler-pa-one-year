@@ -5,6 +5,8 @@ library(dplyr)
 library(tidyr)
 library(forcats)
 library(makeR)
+library(calendR)
+
 
 # Load your data
 by_date <- read.csv("data/visits_by_date.csv")
@@ -31,45 +33,31 @@ calendar_data <- tibble(the_date = seq(
     week_of_month = 1 + as.integer(difftime(the_date, floor_date(the_date, "month"), units = "weeks"))
   )
 
-# Plot
-ggplot(calendar_data, aes(x = weekday, y = -week_of_month, fill = fill_group)) +
-  geom_tile(color = "white") +
-  facet_wrap(~year + month, ncol = 4) +
-  scale_x_continuous(
-    breaks = 1:7,
-    labels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
-    expand = c(0, 0)
-  ) +
-  scale_fill_viridis_c(
-    option = "C",
-    name = "Visits",
-    na.value = "gray90"  # 0s become gray
-  ) +
-  coord_fixed(ratio = 1) +
-  labs(
-    title = "Calendar Heatmap of Daily Visits",
-    x = "Day of Week",
-    y = "Week of Month"
-  ) +
-  theme_minimal() +
-  theme(
-    strip.text = element_text(size = 10, face = "bold"),
-    axis.text.x = element_text(size = 8),
-    axis.text.y = element_blank(),
-    panel.grid = element_blank(),
-    axis.ticks = element_blank()
-  )
+calendar_year <- 2023
 
+# Get full sequence of dates for the year
+all_dates <- seq.Date(from = as.Date(paste0(calendar_year, "-01-01")),
+                      to   = as.Date(paste0(calendar_year, "-12-31")),
+                      by = "day")
 
+# Create vector of visit counts in the same order
+heatmap_data <- tibble(the_date = all_dates) %>%
+  left_join(calendar_data %>% select(the_date, number_of_visits), by = "the_date") %>%
+  mutate(number_of_visits = replace_na(number_of_visits, 0))
 
-calendarHeat(
-  dates = by_date$the_date,
-  values = by_date$number_of_visits,
-  varname = "Visits"
+# Now this vector matches the required input: one number per day of the year
+fill_values <- heatmap_data$number_of_visits
+
+# Plot the calendar heatmap
+calendR(
+  year = calendar_year,
+  special.days = fill_values,
+  gradient = TRUE,
+  low.col= "#fff",
+  special.col = "#a5091e",
+  title = paste("Visits Heatmap -", calendar_year),
+  start = "M",
+  legend.pos = "right",
 )
 
-# Also export the makeR calendarHeat to SVG
-svg("calendar_heatmap_makeR.svg", width = 10, height = 6)
 
-
-dev.off()
